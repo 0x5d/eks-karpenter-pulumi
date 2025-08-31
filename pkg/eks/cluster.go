@@ -11,7 +11,7 @@ import (
 
 type EKSResources struct {
 	Cluster   *eks.Cluster
-	NodeGroup *eks.NodeGroup
+	NodeGroup *eks.NodeGroupV2
 }
 
 func CreateEKSCluster(ctx *pulumi.Context, cfg *config.Config, vpcResources *vpc.VPCResources, iamResources *security.IAMResources) (*EKSResources, error) {
@@ -31,7 +31,7 @@ func CreateEKSCluster(ctx *pulumi.Context, cfg *config.Config, vpcResources *vpc
 		return nil, err
 	}
 
-	nodeGroup, err := eks.NewNodeGroup(ctx, cfg.ClusterName+"-nodes", &eks.NodeGroupArgs{
+	nodeGroup, err := eks.NewNodeGroupV2(ctx, cfg.ClusterName+"-nodes", &eks.NodeGroupV2Args{
 		Cluster:         cluster,
 		InstanceType:    pulumi.String("t3.medium"),
 		DesiredCapacity: pulumi.Int(cfg.NodeCount),
