@@ -3,6 +3,7 @@ package main
 import (
 	"eks-karpenter/pkg/config"
 	"eks-karpenter/pkg/eks"
+	"eks-karpenter/pkg/eks/karpenter"
 	"eks-karpenter/pkg/security"
 	"eks-karpenter/pkg/vpc"
 
@@ -24,6 +25,11 @@ func main() {
 		}
 
 		eksResources, err := eks.CreateEKSCluster(ctx, cfg, vpcResources, iamResources)
+		if err != nil {
+			return err
+		}
+
+		_, err = karpenter.DeployChart(ctx, eksResources.Cluster)
 		if err != nil {
 			return err
 		}
