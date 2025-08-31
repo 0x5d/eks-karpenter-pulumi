@@ -5,7 +5,7 @@ go 1.23.11
 toolchain go1.24.1
 
 require (
-	github.com/pulumi/pulumi-aws/sdk/v6 v6.83.0
+	github.com/pulumi/pulumi-aws/sdk/v7 v7.6.0
 	github.com/pulumi/pulumi-eks/sdk/v4 v4.0.1
 	github.com/pulumi/pulumi/sdk/v3 v3.192.0
 )
@@ -62,7 +62,6 @@ require (
 	github.com/pkg/term v1.1.0 // indirect
 	github.com/pulumi/appdash v0.0.0-20231130102222-75f619a67231 // indirect
 	github.com/pulumi/esc v0.17.0 // indirect
-	github.com/pulumi/pulumi-aws/sdk/v7 v7.6.0 // indirect
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
