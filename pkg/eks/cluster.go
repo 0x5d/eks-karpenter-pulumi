@@ -5,6 +5,7 @@ import (
 	"eks-karpenter/pkg/security"
 	"eks-karpenter/pkg/vpc"
 
+	"github.com/pulumi/pulumi-aws/sdk/v7/go/aws/ec2"
 	"github.com/pulumi/pulumi-eks/sdk/v4/go/eks"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -20,6 +21,26 @@ func CreateEKSCluster(ctx *pulumi.Context, cfg *config.Config, vpcResources *vpc
 		subnetIds[i] = subnet.ID()
 	}
 
+	// Create a security group for nodes with outbound HTTPS access
+	nodeSecurityGroup, err := ec2.NewSecurityGroup(ctx, cfg.ClusterName+"-node-sg", &ec2.SecurityGroupArgs{
+		VpcId:       vpcResources.VPC.ID(),
+		Description: pulumi.String("Security group for EKS node group with HTTPS egress"),
+		Egress: ec2.SecurityGroupEgressArray{
+			&ec2.SecurityGroupEgressArgs{
+				Protocol:   pulumi.String("tcp"),
+				FromPort:   pulumi.Int(443),
+				ToPort:     pulumi.Int(443),
+				CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0.0/0")},
+			},
+		},
+		Tags: pulumi.StringMap{
+			"Name": pulumi.String(cfg.ClusterName + "-node-sg"),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	cluster, err := eks.NewCluster(ctx, cfg.ClusterName, &eks.ClusterArgs{
 		Version:            pulumi.String(cfg.KubernetesVersion),
 		ServiceRole:        iamResources.ClusterRole,
@@ -32,11 +53,12 @@ func CreateEKSCluster(ctx *pulumi.Context, cfg *config.Config, vpcResources *vpc
 	}
 
 	nodeGroup, err := eks.NewNodeGroupV2(ctx, cfg.ClusterName+"-nodes", &eks.NodeGroupV2Args{
-		Cluster:         cluster,
-		InstanceType:    pulumi.String("t3.medium"),
-		DesiredCapacity: pulumi.Int(cfg.NodeCount),
-		MinSize:         pulumi.Int(1),
-		MaxSize:         pulumi.Int(5),
+		Cluster:                 cluster,
+		InstanceType:            pulumi.String("t3.medium"),
+		DesiredCapacity:         pulumi.Int(cfg.NodeCount),
+		MinSize:                 pulumi.Int(1),
+		MaxSize:                 pulumi.Int(5),
+		ExtraNodeSecurityGroups: ec2.SecurityGroupArray{nodeSecurityGroup},
 	})
 	if err != nil {
 		return nil, err

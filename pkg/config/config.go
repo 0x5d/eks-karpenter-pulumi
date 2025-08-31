@@ -32,7 +32,7 @@ func GetConfig(ctx *pulumi.Context) *Config {
 
 	kubernetesVersion := cfg.Get("kubernetesVersion")
 	if kubernetesVersion == "" {
-		kubernetesVersion = "1.29"
+		kubernetesVersion = "1.33"
 	}
 
 	return &Config{

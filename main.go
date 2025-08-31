@@ -7,12 +7,14 @@ import (
 	"eks-karpenter/pkg/security"
 	"eks-karpenter/pkg/vpc"
 
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
 		cfg := config.GetConfig(ctx)
+		karpenterNamespace := "kube-system"
 
 		vpcResources, err := vpc.CreateVPC(ctx, cfg.ClusterName)
 		if err != nil {
@@ -29,7 +31,27 @@ func main() {
 			return err
 		}
 
-		_, err = karpenter.DeployChart(ctx, eksResources.Cluster)
+		karpenterRole, err := security.CreateKarpenterRole(ctx, cfg.ClusterName,
+			eksResources.Cluster.Core.OidcProvider().Arn(),
+			eksResources.Cluster.Core.OidcProvider().Url(),
+			karpenterNamespace)
+		if err != nil {
+			return err
+		}
+
+		k8sProvider, err := kubernetes.NewProvider(
+			ctx,
+			"cluster",
+			&kubernetes.ProviderArgs{
+				Kubeconfig: eksResources.Cluster.KubeconfigJson.ToStringOutput(),
+			},
+			pulumi.DependsOn([]pulumi.Resource{eksResources.Cluster}),
+		)
+		if err != nil {
+			return err
+		}
+
+		_, err = karpenter.DeployChart(ctx, k8sProvider, eksResources.Cluster, karpenterRole, karpenterNamespace)
 		if err != nil {
 			return err
 		}
