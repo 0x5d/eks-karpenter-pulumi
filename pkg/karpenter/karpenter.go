@@ -9,7 +9,6 @@ import (
 )
 
 func DeployChart(ctx *pulumi.Context, provider pulumi.ProviderResource, cluster *eks.Cluster, karpenterRoleArn *iam.Role, namespace string) (*helm.Chart, error) {
-
 	limits := pulumi.Map{
 		"cpu":    pulumi.String("1"),
 		"memory": pulumi.String("1Gi"),

@@ -3,7 +3,7 @@ package main
 import (
 	"eks-karpenter/pkg/config"
 	"eks-karpenter/pkg/eks"
-	"eks-karpenter/pkg/eks/karpenter"
+	"eks-karpenter/pkg/karpenter"
 	"eks-karpenter/pkg/security"
 	"eks-karpenter/pkg/vpc"
 
@@ -39,6 +39,11 @@ func main() {
 			return err
 		}
 
+		karpenterNodeRole, err := security.CreateKarpenterNodeRole(ctx, cfg.ClusterName)
+		if err != nil {
+			return err
+		}
+
 		k8sProvider, err := kubernetes.NewProvider(
 			ctx,
 			"cluster",
@@ -51,7 +56,12 @@ func main() {
 			return err
 		}
 
-		_, err = karpenter.DeployChart(ctx, k8sProvider, eksResources.Cluster, karpenterRole, karpenterNamespace)
+		chart, err := karpenter.DeployChart(ctx, k8sProvider, eksResources.Cluster, karpenterRole, karpenterNamespace)
+		if err != nil {
+			return err
+		}
+
+		err = karpenter.ApplyResources(ctx, k8sProvider, eksResources.Cluster, karpenterNodeRole, chart)
 		if err != nil {
 			return err
 		}

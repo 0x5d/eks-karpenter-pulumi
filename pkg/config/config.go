@@ -9,6 +9,8 @@ type Config struct {
 	ClusterName       string
 	Region            string
 	NodeCount         int
+	MaxSize           int
+	MinSize           int
 	KubernetesVersion string
 }
 
@@ -27,7 +29,16 @@ func GetConfig(ctx *pulumi.Context) *Config {
 
 	nodeCount := cfg.GetInt("nodeCount")
 	if nodeCount == 0 {
-		nodeCount = 3
+		nodeCount = 1
+	}
+	maxSize := cfg.GetInt("maxSize")
+	if maxSize == 0 {
+		maxSize = 1
+	}
+
+	minSize := cfg.GetInt("minSize")
+	if minSize == 0 {
+		minSize = 1
 	}
 
 	kubernetesVersion := cfg.Get("kubernetesVersion")
@@ -39,6 +50,8 @@ func GetConfig(ctx *pulumi.Context) *Config {
 		ClusterName:       clusterName,
 		Region:            region,
 		NodeCount:         nodeCount,
+		MaxSize:           maxSize,
+		MinSize:           minSize,
 		KubernetesVersion: kubernetesVersion,
 	}
 }

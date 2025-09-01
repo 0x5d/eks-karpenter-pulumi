@@ -173,6 +173,19 @@ func CreateKarpenterRole(ctx *pulumi.Context, clusterName string, oidcProviderAr
 			{
 				"Effect": "Allow",
 				"Action": [
+					"iam:GetInstanceProfile",
+					"iam:CreateInstanceProfile",
+					"iam:DeleteInstanceProfile",
+					"iam:AddRoleToInstanceProfile",
+					"iam:RemoveRoleFromInstanceProfile",
+					"iam:TagInstanceProfile",
+					"iam:UntagInstanceProfile"
+				],
+				"Resource": "*"
+			},
+			{
+				"Effect": "Allow",
+				"Action": [
 					"ssm:GetParameter"
 				],
 				"Resource": "*"
@@ -199,4 +212,51 @@ func CreateKarpenterRole(ctx *pulumi.Context, clusterName string, oidcProviderAr
 	}
 
 	return karpenterRole, nil
+}
+
+func CreateKarpenterNodeRole(ctx *pulumi.Context, clusterName string) (*iam.Role, error) {
+	nodeAssumeRolePolicy := `{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Effect": "Allow",
+				"Principal": {
+					"Service": "ec2.amazonaws.com"
+				},
+				"Action": "sts:AssumeRole"
+			}
+		]
+	}`
+
+	nodeRoleName := clusterName + "-karpenter-node-role"
+	nodeRole, err := iam.NewRole(ctx, nodeRoleName, &iam.RoleArgs{
+		Name:             pulumi.String(nodeRoleName),
+		AssumeRolePolicy: pulumi.String(nodeAssumeRolePolicy),
+		Tags: pulumi.StringMap{
+			"Name": pulumi.String(nodeRoleName),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Attach the required managed policies for Karpenter nodes
+	nodePolicies := []string{
+		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+	}
+
+	for i, policy := range nodePolicies {
+		_, err = iam.NewRolePolicyAttachment(ctx, fmt.Sprintf("%s-karpenter-node-policy-%d", clusterName, i), &iam.RolePolicyAttachmentArgs{
+			Role:      nodeRole.Name,
+			PolicyArn: pulumi.String(policy),
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return nodeRole, nil
 }

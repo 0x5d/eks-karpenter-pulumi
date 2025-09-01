@@ -34,7 +34,8 @@ func CreateEKSCluster(ctx *pulumi.Context, cfg *config.Config, vpcResources *vpc
 			},
 		},
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(cfg.ClusterName + "-node-sg"),
+			"Name":                   pulumi.String(cfg.ClusterName + "-node-sg"),
+			"karpenter.sh/discovery": pulumi.String(cfg.ClusterName),
 		},
 	})
 	if err != nil {
@@ -42,6 +43,7 @@ func CreateEKSCluster(ctx *pulumi.Context, cfg *config.Config, vpcResources *vpc
 	}
 
 	cluster, err := eks.NewCluster(ctx, cfg.ClusterName, &eks.ClusterArgs{
+		// Name:               pulumi.String(cfg.ClusterName),
 		Version:            pulumi.String(cfg.KubernetesVersion),
 		ServiceRole:        iamResources.ClusterRole,
 		SubnetIds:          subnetIds,
@@ -56,8 +58,8 @@ func CreateEKSCluster(ctx *pulumi.Context, cfg *config.Config, vpcResources *vpc
 		Cluster:                 cluster,
 		InstanceType:            pulumi.String("t3.medium"),
 		DesiredCapacity:         pulumi.Int(cfg.NodeCount),
-		MinSize:                 pulumi.Int(1),
-		MaxSize:                 pulumi.Int(5),
+		MinSize:                 pulumi.Int(cfg.MinSize),
+		MaxSize:                 pulumi.Int(cfg.MaxSize),
 		ExtraNodeSecurityGroups: ec2.SecurityGroupArray{nodeSecurityGroup},
 	})
 	if err != nil {

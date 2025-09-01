@@ -66,6 +66,7 @@ func CreateVPC(ctx *pulumi.Context, clusterName string) (*VPCResources, error) {
 				"Name":                                 pulumi.String(clusterName + "-public-subnet-" + az),
 				"kubernetes.io/role/elb":               pulumi.String("1"),
 				"kubernetes.io/cluster/" + clusterName: pulumi.String("owned"),
+				"karpenter.sh/discovery":               pulumi.String(clusterName),
 			},
 		})
 		if err != nil {
