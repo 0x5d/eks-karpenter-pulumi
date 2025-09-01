@@ -2,15 +2,16 @@ package security
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pulumi/pulumi-aws/sdk/v7/go/aws/iam"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 type IAMResources struct {
-	ClusterRole   *iam.Role
-	NodeGroupRole *iam.Role
-	KarpenterRole *iam.Role
+	ClusterRole       *iam.Role
+	NodeGroupRole     *iam.Role
+	KarpenterNodeRole *iam.Role
 }
 
 func CreateIAMRoles(ctx *pulumi.Context, clusterName string) (*IAMResources, error) {
@@ -30,7 +31,8 @@ func CreateIAMRoles(ctx *pulumi.Context, clusterName string) (*IAMResources, err
 	clusterRole, err := iam.NewRole(ctx, clusterName+"-cluster-role", &iam.RoleArgs{
 		AssumeRolePolicy: pulumi.String(clusterAssumeRolePolicy),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(clusterName + "-cluster-role"),
+			"Name":       pulumi.String(clusterName + "-cluster-role"),
+			"managed-by": pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
@@ -61,7 +63,8 @@ func CreateIAMRoles(ctx *pulumi.Context, clusterName string) (*IAMResources, err
 	nodeGroupRole, err := iam.NewRole(ctx, clusterName+"-node-role", &iam.RoleArgs{
 		AssumeRolePolicy: pulumi.String(nodeGroupAssumeRolePolicy),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(clusterName + "-node-role"),
+			"Name":       pulumi.String(clusterName + "-node-role"),
+			"managed-by": pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
@@ -72,6 +75,7 @@ func CreateIAMRoles(ctx *pulumi.Context, clusterName string) (*IAMResources, err
 		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
 		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
 		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
 	}
 
 	for i, policy := range nodeGroupPolicies {
@@ -84,10 +88,15 @@ func CreateIAMRoles(ctx *pulumi.Context, clusterName string) (*IAMResources, err
 		}
 	}
 
+	karpenterNodeRole, err := CreateKarpenterNodeRole(ctx, clusterName)
+	if err != nil {
+		return nil, err
+	}
+
 	return &IAMResources{
-		ClusterRole:   clusterRole,
-		NodeGroupRole: nodeGroupRole,
-		KarpenterRole: nil, // Will be created separately
+		ClusterRole:       clusterRole,
+		NodeGroupRole:     nodeGroupRole,
+		KarpenterNodeRole: karpenterNodeRole,
 	}, nil
 }
 
@@ -97,6 +106,8 @@ func CreateKarpenterRole(ctx *pulumi.Context, clusterName string, oidcProviderAr
 		ApplyT(func(args []any) string {
 			providerArn := args[0].(string)
 			providerUrl := args[1].(string)
+			// Remove https:// prefix if present for the condition
+			cleanProviderUrl := strings.TrimPrefix(providerUrl, "https://")
 			return fmt.Sprintf(`{
 			"Version": "2012-10-17",
 			"Statement": [{
@@ -112,13 +123,14 @@ func CreateKarpenterRole(ctx *pulumi.Context, clusterName string, oidcProviderAr
 					}
 				}
 			}]
-		}`, providerArn, providerUrl, namespace, providerUrl)
+		}`, providerArn, cleanProviderUrl, namespace, cleanProviderUrl)
 		}).(pulumi.StringOutput)
 
 	karpenterRole, err := iam.NewRole(ctx, clusterName+"-karpenter-role", &iam.RoleArgs{
 		AssumeRolePolicy: karpenterAssumeRolePolicy,
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(clusterName + "-karpenter-role"),
+			"Name":       pulumi.String(clusterName + "-karpenter-role"),
+			"managed-by": pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
@@ -196,7 +208,8 @@ func CreateKarpenterRole(ctx *pulumi.Context, clusterName string, oidcProviderAr
 	karpenterPolicy, err := iam.NewPolicy(ctx, clusterName+"-karpenter-policy", &iam.PolicyArgs{
 		Policy: pulumi.String(karpenterPolicyDocument),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(clusterName + "-karpenter-policy"),
+			"Name":       pulumi.String(clusterName + "-karpenter-policy"),
+			"managed-by": pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
@@ -233,7 +246,8 @@ func CreateKarpenterNodeRole(ctx *pulumi.Context, clusterName string) (*iam.Role
 		Name:             pulumi.String(nodeRoleName),
 		AssumeRolePolicy: pulumi.String(nodeAssumeRolePolicy),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(nodeRoleName),
+			"Name":       pulumi.String(nodeRoleName),
+			"managed-by": pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
@@ -257,6 +271,22 @@ func CreateKarpenterNodeRole(ctx *pulumi.Context, clusterName string) (*iam.Role
 			return nil, err
 		}
 	}
+
+	// Create instance profile for the node role
+	instanceProfile, err := iam.NewInstanceProfile(ctx, nodeRoleName+"-profile", &iam.InstanceProfileArgs{
+		Name: pulumi.String(nodeRoleName),
+		Role: nodeRole.Name,
+		Tags: pulumi.StringMap{
+			"Name":       pulumi.String(nodeRoleName + "-profile"),
+			"managed-by": pulumi.String("pulumi"),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Export the instance profile name for use by Karpenter
+	ctx.Export("karpenterNodeInstanceProfile", instanceProfile.Name)
 
 	return nodeRole, nil
 }

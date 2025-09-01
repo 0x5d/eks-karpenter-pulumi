@@ -36,19 +36,36 @@ func CreateEKSCluster(ctx *pulumi.Context, cfg *config.Config, vpcResources *vpc
 		Tags: pulumi.StringMap{
 			"Name":                   pulumi.String(cfg.ClusterName + "-node-sg"),
 			"karpenter.sh/discovery": pulumi.String(cfg.ClusterName),
+			"managed-by":             pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	authMode := eks.AuthenticationModeApiAndConfigMap
 	cluster, err := eks.NewCluster(ctx, cfg.ClusterName, &eks.ClusterArgs{
-		// Name:               pulumi.String(cfg.ClusterName),
+		AuthenticationMode: &authMode,
+		RoleMappings: eks.RoleMappingArray{
+			&eks.RoleMappingArgs{
+				RoleArn:  iamResources.KarpenterNodeRole.Arn,
+				Username: pulumi.String("system:node:{{EC2PrivateDNSName}}"),
+				Groups: pulumi.StringArray{
+					pulumi.String("system:bootstrappers"),
+					pulumi.String("system:nodes"),
+				},
+			},
+		},
+		Name:               pulumi.String(cfg.ClusterName),
 		Version:            pulumi.String(cfg.KubernetesVersion),
 		ServiceRole:        iamResources.ClusterRole,
 		SubnetIds:          subnetIds,
 		CreateOidcProvider: pulumi.Bool(true),
 		VpcId:              vpcResources.VPC.ID(),
+		Tags: pulumi.StringMap{
+			"Name":       pulumi.String(cfg.ClusterName),
+			"managed-by": pulumi.String("pulumi"),
+		},
 	})
 	if err != nil {
 		return nil, err

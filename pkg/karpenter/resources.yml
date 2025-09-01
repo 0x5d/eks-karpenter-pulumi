@@ -39,7 +39,6 @@ metadata:
 spec:
   role: {{.Role}}
   amiSelectorTerms:
-    # echo $(aws ssm get-parameter --name "/aws/service/eks/optimized-ami/1.33/amazon-linux-2023/x86_64/standard/recommended/image_id" --query Parameter.Value | xargs aws ec2 describe-images --query 'Images[0].Name' --image-ids | sed -r 's/^.*(v[[:digit:]]+).*$/\1/')
     - alias: "al2023@v20250821"
   subnetSelectorTerms:
     - tags:
@@ -47,3 +46,4 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "{{.ClusterName}}"
+ 

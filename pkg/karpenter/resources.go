@@ -8,7 +8,7 @@ import (
 
 	"github.com/pulumi/pulumi-aws/sdk/v7/go/aws/iam"
 	"github.com/pulumi/pulumi-eks/sdk/v4/go/eks"
-	helm "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v4"
+	helm "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	yaml "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml/v2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -21,8 +21,8 @@ type templateVars struct {
 	Role        string
 }
 
-func ApplyResources(ctx *pulumi.Context, provider pulumi.ProviderResource, cluster *eks.Cluster, role *iam.Role, karpenterChart *helm.Chart) error {
-	yamlContent := pulumi.All(cluster.EksCluster.Name(), role.Name, karpenterChart.URN()).
+func ApplyResources(ctx *pulumi.Context, provider pulumi.ProviderResource, cluster *eks.Cluster, role *iam.Role, karpenterChart *helm.Release) error {
+	yamlContent := pulumi.All(cluster.EksCluster.Name(), role.Name, karpenterChart.ResourceNames).
 		ApplyT(func(args []any) (string, error) {
 			vars := templateVars{ClusterName: args[0].(string), Role: args[1].(string)}
 			tpl, err := template.New("resources").Parse(resources)

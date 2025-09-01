@@ -39,11 +39,6 @@ func main() {
 			return err
 		}
 
-		karpenterNodeRole, err := security.CreateKarpenterNodeRole(ctx, cfg.ClusterName)
-		if err != nil {
-			return err
-		}
-
 		k8sProvider, err := kubernetes.NewProvider(
 			ctx,
 			"cluster",
@@ -61,7 +56,7 @@ func main() {
 			return err
 		}
 
-		err = karpenter.ApplyResources(ctx, k8sProvider, eksResources.Cluster, karpenterNodeRole, chart)
+		err = karpenter.ApplyResources(ctx, k8sProvider, eksResources.Cluster, iamResources.KarpenterNodeRole, chart)
 		if err != nil {
 			return err
 		}

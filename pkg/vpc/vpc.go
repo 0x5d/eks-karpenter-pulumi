@@ -20,7 +20,8 @@ func CreateVPC(ctx *pulumi.Context, clusterName string) (*VPCResources, error) {
 		EnableDnsHostnames: pulumi.Bool(true),
 		EnableDnsSupport:   pulumi.Bool(true),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(clusterName + "-vpc"),
+			"Name":       pulumi.String(clusterName + "-vpc"),
+			"managed-by": pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
@@ -30,7 +31,8 @@ func CreateVPC(ctx *pulumi.Context, clusterName string) (*VPCResources, error) {
 	igw, err := ec2.NewInternetGateway(ctx, clusterName+"-igw", &ec2.InternetGatewayArgs{
 		VpcId: vpc.ID(),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(clusterName + "-igw"),
+			"Name":       pulumi.String(clusterName + "-igw"),
+			"managed-by": pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
@@ -46,7 +48,8 @@ func CreateVPC(ctx *pulumi.Context, clusterName string) (*VPCResources, error) {
 			},
 		},
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(clusterName + "-public-rt"),
+			"Name":       pulumi.String(clusterName + "-public-rt"),
+			"managed-by": pulumi.String("pulumi"),
 		},
 	})
 	if err != nil {
@@ -67,6 +70,7 @@ func CreateVPC(ctx *pulumi.Context, clusterName string) (*VPCResources, error) {
 				"kubernetes.io/role/elb":               pulumi.String("1"),
 				"kubernetes.io/cluster/" + clusterName: pulumi.String("owned"),
 				"karpenter.sh/discovery":               pulumi.String(clusterName),
+				"managed-by":                           pulumi.String("pulumi"),
 			},
 		})
 		if err != nil {
